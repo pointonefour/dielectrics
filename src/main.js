@@ -1,32 +1,192 @@
 import * as THREE from 'three';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { TransformControls } from 'three/examples/jsm/controls/TransformControls.js';
 
-const scene = new THREE.Scene();
+let scene, camera, renderer, controls, transformControls, currentModel;
+let contextMenu, dropZone, fileInput;
 
-const camera = new THREE.PerspectiveCamera(
-  75,
-  window.innerWidth / window.innerHeight,
-  0.1,
-  100
-);
-camera.position.z = 3;
+const loader = new GLTFLoader();
+const raycaster = new THREE.Raycaster();
+const mouse = new THREE.Vector2();
 
-const renderer = new THREE.WebGLRenderer({ antialias: true });
-renderer.setSize(window.innerWidth, window.innerHeight);
-document.body.appendChild(renderer.domElement);
+function init() {
+    contextMenu = document.getElementById('contextMenu');
+    dropZone = document.getElementById('dropZone');
+    fileInput = document.getElementById('meshUpload');
 
-const geometry = new THREE.BoxGeometry();
-const material = new THREE.MeshStandardMaterial({ color: 0x44aa88 });
-const cube = new THREE.Mesh(geometry, material);
-scene.add(cube);
+    scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x111111);
 
-const light = new THREE.DirectionalLight(0xffffff, 1);
-light.position.set(5, 5, 5);
-scene.add(light);
+    camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.set(5, 5, 5);
+
+    renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    document.body.appendChild(renderer.domElement);
+
+    controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+
+    // --- TRANSFORM CONTROLS SETUP ---
+    transformControls = new TransformControls(camera, renderer.domElement);
+    // Important: Some versions require adding the gizmo as its own object
+    scene.add(transformControls.getHelper ? transformControls.getHelper() : transformControls);
+
+    transformControls.addEventListener('dragging-changed', (event) => {
+        controls.enabled = !event.value;
+    });
+
+    scene.add(new THREE.AmbientLight(0xffffff, 0.8));
+    const dirLight = new THREE.DirectionalLight(0xffffff, 1.5);
+    dirLight.position.set(5, 10, 7.5);
+    scene.add(dirLight);
+    scene.add(new THREE.GridHelper(10, 10, 0x333333, 0x222222));
+
+    // --- KEYBOARD SHORTCUTS (The Pro Way) ---
+    window.addEventListener('keydown', (event) => {
+        switch (event.key.toLowerCase()) {
+            case 'w': transformControls.setMode('translate'); break;
+            case 'e': transformControls.setMode('rotate'); break;
+            case 'r': transformControls.setMode('scale'); break;
+            case 'delete': removeModel(); break;
+            case 'escape': transformControls.detach(); break;
+        }
+    });
+
+    // --- BUTTON LISTENERS ---
+    const bindBtn = (id, action) => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener('mousedown', (e) => {
+            e.stopPropagation(); // Stops the "click through" to the scene
+            action();
+            hideMenu();
+        });
+    };
+
+    bindBtn('menuDelete', removeModel);
+    bindBtn('menuTranslate', () => transformControls.setMode('translate'));
+    bindBtn('menuRotate', () => transformControls.setMode('rotate'));
+    bindBtn('menuScale', () => transformControls.setMode('scale'));
+
+    // --- UI & DRAG LOGIC ---
+    window.addEventListener('contextmenu', onContextMenu);
+    window.addEventListener('mousedown', (e) => {
+        if (contextMenu && !contextMenu.contains(e.target)) hideMenu();
+    });
+
+    dropZone.addEventListener('click', () => fileInput.click());
+    
+    // Restoration of the "Glow" effect
+    dropZone.addEventListener('dragenter', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dropZone.classList.add('dragover');
+});
+
+// 2. Mouse is moving over the dropzone (REQUIRED for drop to work)
+dropZone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!dropZone.classList.contains('dragover')) {
+        dropZone.classList.add('dragover');
+    }
+});
+
+// 3. Mouse leaves the dropzone or drop is finished
+dropZone.addEventListener('dragleave', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dropZone.classList.remove('dragover');
+});
+
+// 4. File is actually dropped
+dropZone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dropZone.classList.remove('dragover'); // Remove glow
+    
+    if (e.dataTransfer.files.length > 0) {
+        loadFile(e.dataTransfer.files[0]);
+    }
+});
+
+// 5. Standard Click to Browse
+dropZone.addEventListener('click', () => fileInput.click());
+
+fileInput.addEventListener('change', (e) => {
+    if (e.target.files.length > 0) {
+        loadFile(e.target.files[0]);
+        e.target.value = ''; 
+    }
+});
+
+    window.addEventListener('resize', onWindowResize);
+    animate();
+}
+
+function onContextMenu(event) {
+    event.preventDefault();
+    if (!currentModel) return;
+
+    mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+    mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+    raycaster.setFromCamera(mouse, camera);
+    const intersects = raycaster.intersectObject(currentModel, true);
+
+    if (intersects.length > 0) {
+        contextMenu.style.display = 'block';
+        contextMenu.style.left = `${event.clientX}px`;
+        contextMenu.style.top = `${event.clientY}px`;
+    }
+}
+
+function loadFile(file) {
+    if (!file) return;
+    const url = URL.createObjectURL(file);
+    loader.load(url, (gltf) => {
+        if (currentModel) removeModel();
+        currentModel = gltf.scene;
+        scene.add(currentModel);
+        fitCameraToModel(currentModel);
+        transformControls.attach(currentModel);
+        URL.revokeObjectURL(url);
+    });
+}
+
+function removeModel() {
+    if (currentModel) {
+        transformControls.detach();
+        scene.remove(currentModel);
+        currentModel = null;
+    }
+}
+
+function hideMenu() { if (contextMenu) contextMenu.style.display = 'none'; }
+
+function fitCameraToModel(model) {
+    const box = new THREE.Box3().setFromObject(model);
+    const size = box.getSize(new THREE.Vector3());
+    const center = box.getCenter(new THREE.Vector3());
+    model.position.sub(center); // Move model to 0,0,0
+    const maxDim = Math.max(size.x, size.y, size.z);
+    camera.position.set(maxDim * 1.5, maxDim * 1.5, maxDim * 1.5);
+    controls.target.set(0, 0, 0);
+}
+
+function onWindowResize() {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+}
 
 function animate() {
-  cube.rotation.x += 0.01;
-  cube.rotation.y += 0.01;
-  renderer.render(scene, camera);
-  requestAnimationFrame(animate);
+    requestAnimationFrame(animate);
+    controls.update();
+    renderer.render(scene, camera);
 }
-animate();
+
+window.onload = init;
