@@ -31,31 +31,28 @@
     cursor: pointer;
     background: rgba(0, 0, 0, 0.5);
     border-radius: 8px;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); /* Smooth transition */
-    }
+    transition: all 0.2s ease-in-out;
+    user-select: none;
+  }
 
-  /* The Glow Effect */
-    #dropZone.dragover {
+  /* 1. MOUSE HOVER (Standard) */
+  #dropZone:hover {
+    border-color: #888;
+    background: #5231e9(255, 0, 0, 0.856);
+    color: #ccc;
+  }
+
+  /* 2. FILE DRAG HOVER (The Glow) */
+  #dropZone.dragover {
     border-color: #5231e9;
     color: #fff;
-    background: rgba(82, 49, 233, 0.2);
-    box-shadow: 0 0 20px rgba(82, 49, 233, 0.4);
-    transform: scale(1.02);
-    }
-
-  .context-menu {
-    display: none;
-    position: fixed;
-    background: #1a1a1a;
-    border: 1px solid #444;
-    border-radius: 6px;
-    min-width: 180px;
-    z-index: 1000;
-    font-family: sans-serif;
-    overflow: hidden; /* Ensures hover stays in bounds */
-    }
+    background: rgba(82, 49, 233, 0.25);
+    box-shadow: 0 0 20px rgba(82, 49, 233, 0.5);
+    transform: translateY(-2px); /* Slight lift effect */
+  }
+    
     </style>
-    <script type="module" crossorigin src="./assets/index-DIOyEbv4.js"></script>
+    <script type="module" crossorigin src="./assets/index-NE03NxG7.js"></script>
   </head>
   <body>
     <div id="ui">

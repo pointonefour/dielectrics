@@ -81,9 +81,34 @@ function init() {
     // --- UI & DRAG LOGIC ---
     window.addEventListener('contextmenu', onContextMenu);
     
-    window.addEventListener('mousedown', (e) => {
-        if (contextMenu && !contextMenu.contains(e.target)) hideMenu();
-    });
+   window.addEventListener('mousedown', (e) => {
+    // 1. Hide context menu if clicking outside it
+    if (contextMenu && !contextMenu.contains(e.target)) {
+        hideMenu();
+    }
+
+    // 2. Gizmo Deselection Logic (Left Click Only)
+    if (e.button === 0 && currentModel) {
+        // If we are clicking the UI (menu or dropzone), don't deselect the model
+        if (contextMenu.contains(e.target) || dropZone.contains(e.target)) return;
+
+        // Calculate mouse position
+        mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+        mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+
+        // Update raycaster
+        raycaster.setFromCamera(mouse, camera);
+
+        // Check if we hit the model
+        const intersects = raycaster.intersectObject(currentModel, true);
+
+        // If intersects.length is 0, it means we clicked empty space
+        if (intersects.length === 0) {
+            transformControls.detach();
+            console.log("Clicked background: Gizmo detached");
+        }
+    }
+});
 
     // FIXED: Only ONE click listener to prevent double window popup
     dropZone.addEventListener('click', () => fileInput.click());
