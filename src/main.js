@@ -30,9 +30,8 @@ function init() {
     controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
 
-    // --- TRANSFORM CONTROLS SETUP ---
+    // --- TRANSFORM CONTROLS ---
     transformControls = new TransformControls(camera, renderer.domElement);
-    // Important: Some versions require adding the gizmo as its own object
     scene.add(transformControls.getHelper ? transformControls.getHelper() : transformControls);
 
     transformControls.addEventListener('dragging-changed', (event) => {
@@ -45,87 +44,84 @@ function init() {
     scene.add(dirLight);
     scene.add(new THREE.GridHelper(10, 10, 0x333333, 0x222222));
 
-    // --- KEYBOARD SHORTCUTS (The Pro Way) ---
+    // --- KEYBOARD SHORTCUTS ---
     window.addEventListener('keydown', (event) => {
+        if (!currentModel) return;
         switch (event.key.toLowerCase()) {
-            case 'w': transformControls.setMode('translate'); break;
-            case 'e': transformControls.setMode('rotate'); break;
-            case 'r': transformControls.setMode('scale'); break;
+            case 'w': transformControls.attach(currentModel); transformControls.setMode('translate'); break;
+            case 'e': transformControls.attach(currentModel); transformControls.setMode('rotate'); break;
+            case 'r': transformControls.attach(currentModel); transformControls.setMode('scale'); break;
             case 'delete': removeModel(); break;
             case 'escape': transformControls.detach(); break;
         }
     });
 
     // --- BUTTON LISTENERS ---
-    const bindBtn = (id, action) => {
+    const bindBtn = (id, action, mode = null) => {
         const el = document.getElementById(id);
         if (el) el.addEventListener('mousedown', (e) => {
-            e.stopPropagation(); // Stops the "click through" to the scene
-            action();
+            e.stopPropagation();
+            if (currentModel) {
+                if (mode) {
+                    transformControls.attach(currentModel);
+                    transformControls.setMode(mode);
+                } else {
+                    action();
+                }
+            }
             hideMenu();
         });
     };
 
     bindBtn('menuDelete', removeModel);
-    bindBtn('menuTranslate', () => transformControls.setMode('translate'));
-    bindBtn('menuRotate', () => transformControls.setMode('rotate'));
-    bindBtn('menuScale', () => transformControls.setMode('scale'));
+    bindBtn('menuTranslate', null, 'translate');
+    bindBtn('menuRotate', null, 'rotate');
+    bindBtn('menuScale', null, 'scale');
 
     // --- UI & DRAG LOGIC ---
     window.addEventListener('contextmenu', onContextMenu);
+    
     window.addEventListener('mousedown', (e) => {
         if (contextMenu && !contextMenu.contains(e.target)) hideMenu();
     });
 
+    // FIXED: Only ONE click listener to prevent double window popup
     dropZone.addEventListener('click', () => fileInput.click());
-    
-    // Restoration of the "Glow" effect
+
+    // FIXED: Drag and Drop Animation logic
     dropZone.addEventListener('dragenter', (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    dropZone.classList.add('dragover');
-});
-
-// 2. Mouse is moving over the dropzone (REQUIRED for drop to work)
-dropZone.addEventListener('dragover', (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (!dropZone.classList.contains('dragover')) {
+        e.preventDefault();
         dropZone.classList.add('dragover');
-    }
-});
+    });
 
-// 3. Mouse leaves the dropzone or drop is finished
-dropZone.addEventListener('dragleave', (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    dropZone.classList.remove('dragover');
-});
+    dropZone.addEventListener('dragover', (e) => {
+        e.preventDefault(); // Required for drop to work
+    });
 
-// 4. File is actually dropped
-dropZone.addEventListener('drop', (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    dropZone.classList.remove('dragover'); // Remove glow
-    
-    if (e.dataTransfer.files.length > 0) {
-        loadFile(e.dataTransfer.files[0]);
-    }
-});
+    dropZone.addEventListener('dragleave', () => {
+        dropZone.classList.remove('dragover');
+    });
 
-// 5. Standard Click to Browse
-dropZone.addEventListener('click', () => fileInput.click());
+    dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('dragover');
+        if (e.dataTransfer.files.length > 0) {
+            loadFile(e.dataTransfer.files[0]);
+        }
+    });
 
-fileInput.addEventListener('change', (e) => {
-    if (e.target.files.length > 0) {
-        loadFile(e.target.files[0]);
-        e.target.value = ''; 
-    }
-});
+    fileInput.addEventListener('change', (e) => {
+        if (e.target.files.length > 0) {
+            loadFile(e.target.files[0]);
+            e.target.value = ''; 
+        }
+    });
 
     window.addEventListener('resize', onWindowResize);
     animate();
 }
+
+// --- Logic Functions ---
 
 function onContextMenu(event) {
     event.preventDefault();
@@ -152,7 +148,11 @@ function loadFile(file) {
         currentModel = gltf.scene;
         scene.add(currentModel);
         fitCameraToModel(currentModel);
-        transformControls.attach(currentModel);
+        
+        // FIXED: Do NOT attach gizmo here. 
+        // It only attaches via the menu or keyboard shortcuts.
+        transformControls.detach(); 
+        
         URL.revokeObjectURL(url);
     });
 }
@@ -171,9 +171,10 @@ function fitCameraToModel(model) {
     const box = new THREE.Box3().setFromObject(model);
     const size = box.getSize(new THREE.Vector3());
     const center = box.getCenter(new THREE.Vector3());
-    model.position.sub(center); // Move model to 0,0,0
+    model.position.sub(center); 
     const maxDim = Math.max(size.x, size.y, size.z);
     camera.position.set(maxDim * 1.5, maxDim * 1.5, maxDim * 1.5);
+    camera.lookAt(0,0,0);
     controls.target.set(0, 0, 0);
 }
 
