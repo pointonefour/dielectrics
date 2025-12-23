@@ -15,14 +15,12 @@ const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
 
 function init() {
-    // --- 1. UI ELEMENTS ---
     contextMenu = document.getElementById('contextMenu');
     dropZone = document.getElementById('dropZone');
     fileInput = document.getElementById('meshUpload');
     const undoBtn = document.getElementById('undoBtn');
     const redoBtn = document.getElementById('redoBtn');
 
-    // --- 2. SCENE SETUP ---
     scene = new THREE.Scene();
     scene.background = new THREE.Color(0x111111);
 
@@ -38,48 +36,44 @@ function init() {
     controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
 
-    // --- 3. TRANSFORM CONTROLS (GIZMOS) ---
     transformControls = new TransformControls(camera, renderer.domElement);
     scene.add(transformControls.getHelper ? transformControls.getHelper() : transformControls);
 
-    // Disable camera orbit when dragging gizmo
     transformControls.addEventListener('dragging-changed', (event) => {
         controls.enabled = !event.value;
     });
 
-    // --- 4. UNDO/REDO TRACKING ---
     transformControls.addEventListener('mouseDown', () => {
-        if (currentModel) transformStartData = getModelState();
+        if (currentModel) transformStartData = getModelState(currentModel);
     });
 
     transformControls.addEventListener('mouseUp', () => {
         if (currentModel && transformStartData) {
-            const transformEndData = getModelState();
-            saveAction(transformStartData, transformEndData);
+            const transformEndData = getModelState(currentModel);
+            saveAction(currentModel, transformStartData, transformEndData);
         }
     });
 
-    // --- 5. LIGHTS & HELPERS ---
     scene.add(new THREE.AmbientLight(0xffffff, 0.8));
     const dirLight = new THREE.DirectionalLight(0xffffff, 1.5);
     dirLight.position.set(5, 10, 7.5);
     scene.add(dirLight);
-    scene.add(new THREE.GridHelper(10, 10, 0x333333, 0x222222));
 
-    // --- 6. KEYBOARD SHORTCUTS ---
+    const grid = new THREE.GridHelper(10, 10, 0x333333, 0x222222);
+    grid.name = "SceneGrid"; // Named so we can ignore it
+    scene.add(grid);
+
     window.addEventListener('keydown', (event) => {
         if (!currentModel) return;
         const isCtrl = event.ctrlKey || event.metaKey;
         const isShift = event.shiftKey;
 
-        // Undo/Redo Shortcuts
         if (isCtrl && event.key.toLowerCase() === 'z') {
             event.preventDefault();
             if (isShift) redo(); else undo();
             return;
         }
 
-        // Transform Shortcuts
         switch (event.key.toLowerCase()) {
             case 'w': transformControls.attach(currentModel); transformControls.setMode('translate'); break;
             case 'e': transformControls.attach(currentModel); transformControls.setMode('rotate'); break;
@@ -89,7 +83,6 @@ function init() {
         }
     });
 
-    // --- 7. BUTTON LISTENERS ---
     const bindBtn = (id, action, mode = null) => {
         const el = document.getElementById(id);
         if (el) el.addEventListener('mousedown', (e) => {
@@ -112,28 +105,25 @@ function init() {
     if(undoBtn) undoBtn.addEventListener('click', undo);
     if(redoBtn) redoBtn.addEventListener('click', redo);
 
-    // --- 8. UI, CLICK, & DRAG LOGIC ---
     window.addEventListener('contextmenu', onContextMenu);
     
     window.addEventListener('mousedown', (e) => {
         if (contextMenu && !contextMenu.contains(e.target)) hideMenu();
 
-        // Left Click + Raycaster to deselect Gizmo
-        if (e.button === 0 && currentModel) {
+        if (e.button === 0) {
             if (contextMenu.contains(e.target) || dropZone.contains(e.target)) return;
             
-            mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
-            mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
-            raycaster.setFromCamera(mouse, camera);
-            const intersects = raycaster.intersectObject(currentModel, true);
-
-            if (intersects.length === 0) {
+            const hit = getClickedModel(e);
+            if (hit) {
+                currentModel = hit;
+                if (transformControls.object) transformControls.attach(currentModel);
+            } else {
                 transformControls.detach();
+                currentModel = null; 
             }
         }
     });
 
-    // Drag & Drop Visuals
     dropZone.addEventListener('dragenter', (e) => { e.preventDefault(); dropZone.classList.add('dragover'); });
     dropZone.addEventListener('dragover', (e) => { e.preventDefault(); });
     dropZone.addEventListener('dragleave', () => { dropZone.classList.remove('dragover'); });
@@ -143,7 +133,6 @@ function init() {
         if (e.dataTransfer.files.length > 0) loadFile(e.dataTransfer.files[0]);
     });
 
-    // File Input (Clicking the box)
     dropZone.addEventListener('click', () => fileInput.click());
     fileInput.addEventListener('change', (e) => {
         if (e.target.files.length > 0) {
@@ -156,64 +145,76 @@ function init() {
     animate();
 }
 
-    // Save the current state of the model (Pos, Rot, Scale)
-function getModelState() {
-    if (!currentModel) return null;
+// --- HELPER: Identify only Models ---
+function getClickedModel(event) {
+    mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+    mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+    raycaster.setFromCamera(mouse, camera);
+
+    // Filter scene children to exclude Grid, Lights, and TransformControls
+    const objectsToCheck = scene.children.filter(obj => 
+        obj.type === "Group" || (obj.isMesh && obj.name !== "SceneGrid")
+    );
+
+    const intersects = raycaster.intersectObjects(objectsToCheck, true);
+    if (intersects.length > 0) {
+        let obj = intersects[0].object;
+        while (obj.parent && obj.parent !== scene) {
+            obj = obj.parent;
+        }
+        return obj;
+    }
+    return null;
+}
+
+// --- HISTORY LOGIC ---
+function getModelState(model) {
     return {
-        position: currentModel.position.clone(),
-        rotation: currentModel.rotation.clone(),
-        scale: currentModel.scale.clone()
+        position: model.position.clone(),
+        rotation: model.rotation.clone(),
+        scale: model.scale.clone()
     };
 }
 
-// Apply a saved state to the model
-function applyState(state) {
-    if (!currentModel || !state) return;
-    currentModel.position.copy(state.position);
-    currentModel.rotation.copy(state.rotation);
-    currentModel.scale.copy(state.scale);
-    // Update the gizmo position to match the model
-    transformControls.updateMatrixWorld(); 
+function applyState(model, state) {
+    if (!model || !state) return;
+    model.position.copy(state.position);
+    model.rotation.copy(state.rotation);
+    model.scale.copy(state.scale);
+    transformControls.updateMatrixWorld();
 }
 
-function saveAction(oldState, newState) {
-    undoStack.push({ oldState, newState });
-    redoStack = []; // Clear redo whenever a new action happens
-    if (undoStack.length > 50) undoStack.shift(); // Limit memory
+function saveAction(model, oldState, newState) {
+    undoStack.push({ model, oldState, newState });
+    redoStack = [];
+    if (undoStack.length > 100) undoStack.shift();
 }
 
 function undo() {
     if (undoStack.length === 0) return;
     const action = undoStack.pop();
     redoStack.push(action);
-    applyState(action.oldState);
-    console.log("Undo performed");
+    applyState(action.model, action.oldState);
 }
 
 function redo() {
     if (redoStack.length === 0) return;
     const action = redoStack.pop();
     undoStack.push(action);
-    applyState(action.newState);
-    console.log("Redo performed");
+    applyState(action.model, action.newState);
 }
 
-// --- Logic Functions ---
-
+// --- LOGIC FUNCTIONS ---
 function onContextMenu(event) {
     event.preventDefault();
-    if (!currentModel) return;
-
-    mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-    mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
-
-    raycaster.setFromCamera(mouse, camera);
-    const intersects = raycaster.intersectObject(currentModel, true);
-
-    if (intersects.length > 0) {
+    const hit = getClickedModel(event);
+    if (hit) {
+        currentModel = hit;
         contextMenu.style.display = 'block';
         contextMenu.style.left = `${event.clientX}px`;
         contextMenu.style.top = `${event.clientY}px`;
+    } else {
+        hideMenu();
     }
 }
 
@@ -221,16 +222,14 @@ function loadFile(file) {
     if (!file) return;
     const url = URL.createObjectURL(file);
     loader.load(url, (gltf) => {
-        if (currentModel) removeModel();
-        currentModel = gltf.scene;
-        scene.add(currentModel);
-        fitCameraToModel(currentModel);
+        const newModel = gltf.scene;
+        scene.add(newModel);
+        currentModel = newModel;
         
-        // FIXED: Do NOT attach gizmo here. 
-        // It only attaches via the menu or keyboard shortcuts.
+        fitCameraToModel(newModel);
         transformControls.detach(); 
-        
         URL.revokeObjectURL(url);
+        console.log("Model loaded");
     });
 }
 
