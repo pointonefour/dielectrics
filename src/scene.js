@@ -61,7 +61,7 @@ export function initScene() {
 
    // 6. Grid 
     // Parameters: size, divisions, centerLineColor, gridLineColor
-    const grid = new THREE.GridHelper(20, 20, 0x999999, 0x777777); 
+    const grid = new THREE.GridHelper(40, 40, 0x999999, 0x777777); 
         grid.name = "SceneGrid";
     scene.add(grid);
 
