@@ -7,6 +7,15 @@ import { setupUI } from './ui.js';
 let transformControls, currentModel = null;
 let transformStartData = null;
 
+// Helper function to update the highlight
+function updateHighlight() {
+    if (currentModel) {
+        SceneModule.outlinePass.selectedObjects = [currentModel];
+    } else {
+        SceneModule.outlinePass.selectedObjects = [];
+    }
+}
+
 function init() {
     SceneModule.initScene();
     
@@ -39,6 +48,7 @@ function init() {
         onLoad: (model) => { 
             currentModel = model; 
             transformControls.detach(); 
+            updateHighlight(); // Highlight the newly loaded model
         },
         onSetMode: (mode) => { 
             if (currentModel) {
@@ -70,6 +80,8 @@ function handleSelection(e) {
         currentModel = null; 
         transformControls.detach(); 
     }
+
+    updateHighlight(); // Update the yellow border
 }
 
 function handleContextMenu(e) {
@@ -89,6 +101,7 @@ function removeModel() {
         transformControls.detach(); 
         SceneModule.scene.remove(currentModel); 
         currentModel = null; 
+        updateHighlight(); // Clear border
     }
 }
 
