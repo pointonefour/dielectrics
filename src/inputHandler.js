@@ -1,5 +1,5 @@
 import { undo, redo } from './history.js';
-import { getClickedModel } from './scene.js';
+//import { getClickedModel } from './scene.js';
 
 export function setupKeyboard(transformControls, currentModelProvider, removeCallback) {
     window.addEventListener('keydown', (e) => {

@@ -51,6 +51,42 @@
         transform: translateY(-2px);
       }
 
+      #dropOverlay {
+      position: fixed;
+      inset: 0;
+      z-index: 9999; /* On top of everything */
+      pointer-events: none; /* Prevents it from blocking clicks when invisible */
+      opacity: 0;
+      transition: all 0.4s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      /* Purple inner glow */
+        box-shadow: inset 0 0 150px rgba(147, 51, 234, 0); 
+        background: rgba(147, 51, 234, 0);
+    }
+
+        #dropOverlay.active {
+        opacity: 1;
+        background: rgba(147, 51, 234, 0.1); /* Subtle purple tint */
+        box-shadow: inset 0 0 200px rgba(147, 51, 234, 0.6); /* Deep purple glow */
+      }
+
+      .glow-text {
+      font-family: sans-serif;
+      font-weight: 800;
+      font-size: 50px;
+      color: #a855f7;
+      letter-spacing: 10px;
+      text-shadow: 0 0 30px rgba(168, 85, 247, 0.8);
+      transform: scale(0.9);
+      transition: transform 0.4s ease;
+      }
+
+#dropOverlay.active .glow-text {
+  transform: scale(1);
+}
+
       /* Context Menu */
       .context-menu {
         display: none; 
@@ -115,7 +151,12 @@
   <body>
     <div id="ui">
       <!-- 1. Dropzone -->
-      <div id="dropZone">Drag & Drop .glb here</div>
+      <div id="dropZone">Select from device</div>
+
+      <!-- Replace your old <div id="dropZone"> with this -->
+  <div id="dropOverlay">
+    <div class="glow-text">Drop your File</div>
+  </div>
       
       <!-- 2. Undo/Redo Buttons (Inside UI div) -->
       <div class="history-controls">
@@ -125,16 +166,16 @@
         <button id="snapToggleBtn" class="ui-button">⦻</button>
       </div>
 
-      <input type="file" id="meshUpload" accept=".glb,.gltf" hidden />
+      <input type="file" id="meshUpload" accept=".glb,.gltf,.obj,.stl,.ply,.dae,.hdr" hidden />
     </div>
 
     <!-- 3. Context Menu -->
     <div id="contextMenu" class="context-menu">
       <div class="menu-item danger" id="menuDelete"> Delete Model</div>
       <div class="menu-divider"></div>
-      <div class="menu-item" id="menuTranslate">Move (Arrows)</div>
-      <div class="menu-item" id="menuRotate">Rotate (Circles)</div>
-      <div class="menu-item" id="menuScale">Scale (Boxes)</div>
+      <div class="menu-item" id="menuTranslate">Move</div>
+      <div class="menu-item" id="menuRotate">Rotate</div>
+      <div class="menu-item" id="menuScale">Scale</div>
     </div>
 
     <script type="module" src="/src/main.js"></script>
