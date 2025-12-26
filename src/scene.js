@@ -41,7 +41,7 @@ export function initScene() {
     composer.addPass(outlinePass);
     composer.addPass(new OutputPass());
 
-    grid = new THREE.GridHelper(40, 40, 0x444444, 0x222222);
+    grid = new THREE.GridHelper(40, 40, 0x555555, 0x222222);
     scene.add(grid);
 
     controls = new OrbitControls(camera, renderer.domElement);

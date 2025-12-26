@@ -31,21 +31,23 @@ body {
 }
 
 /* Your default button style (Black) */
-/* Base button style (Black) */
+/* 1. The default look (Black) */
 .ui-button {
     background-color: #111111 !important;
-    color: white !important;
-    border: 1px solid #444;
+    color: #ffffff !important;
+    border: 1px solid #444 !important;
     padding: 8px 16px;
     cursor: pointer;
     border-radius: 4px;
 }
 
-/* Active style (Blue) */
-/* This specific selector '.ui-button.active' is much stronger than '.ui-button' */
+/* 2. The Active look (Blue) */
+/* We use the double selector to make it high priority */
 .ui-button.active {
-    background-color: #007bff !important;
+    background-color: #007bff !important; 
+    color: #ffffff !important;
     border-color: #0056b3 !important;
+    box-shadow: 0 0 5px rgba(0, 123, 255, 0.5);
 }
 
 h1 {

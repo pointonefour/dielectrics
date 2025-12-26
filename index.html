@@ -83,28 +83,33 @@
       }
 
       .history-controls button {
-        background: rgba(30, 30, 30, 0.8); /* Dark background */
-        border: 1.5px solid #444;
-        color: white; /* White icons */
-        padding: 5px 10px;
-        border-radius: 6px;
-        cursor: pointer;
-        font-size: 20px;
-        transition: background 0.2s;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-      }
+  background: rgba(30, 30, 30, 0.9) !important; /* Dark default */
+  border: 1.5px solid #444;
+  color: white;
+  padding: 5px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 20px;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: auto;
+}
 
-      .history-controls button:hover {
-        background: #31c4e9;
-        border-color: #31c4e9;
-        color: #000;
-      }
 
-      .history-controls button:active {
-        transform: scale(0.7);
-      }
+      .history-controls button.active {
+  background: #31c4e9 !important; /* The cyan/blue color */
+  color: #000 !important;
+  border-color: #ffffff !important;
+  box-shadow: 0 0 10px rgba(49, 196, 233, 0.5);
+}
+
+     .history-controls button:hover {
+  background: #31c4e9 !important;
+  color: #000 !important;
+  border-color: #31c4e9 !important;
+}
     </style>
   </head>
   <body>
@@ -116,8 +121,8 @@
       <div class="history-controls">
         <button id="undoBtn" title="Undo (Ctrl+Z)">↶</button>
         <button id="redoBtn" title="Redo (Ctrl+Shift+Z)">↷</button>
-        <button id="gridToggleBtn" title="Toggle Grid">▦</button>
-        <button id="snapToggleBtn" class="ui-button">⧇</button>
+        <button id="gridToggleBtn" class="active">▦</button>
+        <button id="snapToggleBtn" class="ui-button">⦻</button>
       </div>
 
       <input type="file" id="meshUpload" accept=".glb,.gltf" hidden />

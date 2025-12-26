@@ -9,30 +9,40 @@ export function setupUI(callbacks) {
     const redoBtn = document.getElementById('redoBtn');
     
     // --- GRID TOGGLE ---
-    const gridBtn = document.getElementById('gridToggleBtn');
-    if (gridBtn) {
-        // Grid starts as VISIBLE, so make button BLUE immediately
-        gridBtn.classList.add('active'); 
+    
+// --- GRID BUTTON ---
+const gridBtn = document.getElementById('gridToggleBtn');
+if (gridBtn) {
+    gridBtn.classList.add('active'); // Start active since grid is visible by default
+    gridBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        const isVisible = callbacks.onToggleGrid();
+        
+        if (isVisible) {
+            gridBtn.classList.add('active');
+        } else {
+            gridBtn.classList.remove('active');
+        }
+    });
+}
 
-        gridBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            const isVisible = callbacks.onToggleGrid();
-            gridBtn.classList.toggle('active', isVisible);
-        });
-    }
-
-    // --- SNAPPING TOGGLE ---
-    const snapBtn = document.getElementById('snapToggleBtn');
-    let snapEnabled = false;
-    if (snapBtn) {
-        snapBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            snapEnabled = !snapEnabled;
-            callbacks.onToggleSnap(snapEnabled);
-            // Toggle blue color based on snap state
-            snapBtn.classList.toggle('active', snapEnabled);
-        });
-    }
+    // --- SNAP BUTTON ---
+const snapBtn = document.getElementById('snapToggleBtn');
+let snapActive = false; // Internal tracker for UI
+if (snapBtn) {
+    snapBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        snapActive = !snapActive;
+        
+        callbacks.onToggleSnap(snapActive);
+        
+        if (snapActive) {
+            snapBtn.classList.add('active');
+        } else {
+            snapBtn.classList.remove('active');
+        }
+    });
+}
 
     // --- UNDO / REDO ---
     if (undoBtn) undoBtn.addEventListener('click', (e) => {
