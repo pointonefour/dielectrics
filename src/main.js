@@ -99,6 +99,19 @@ function handleContextMenu(e) {
 function removeModel() {
     if (currentModel) { 
         transformControls.detach(); 
+
+            currentModel.traverse((node) => {
+            if (node.isMesh) {
+                node.geometry.dispose();
+                if (Array.isArray(node.material)) {
+                    node.material.forEach(m => m.dispose());
+                } else {
+                    node.material.dispose();
+                }
+            }
+        });
+ 
+
         SceneModule.scene.remove(currentModel); 
         currentModel = null; 
         updateHighlight(); // Clear border
