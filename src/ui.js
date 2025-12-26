@@ -7,6 +7,15 @@ export function setupUI(callbacks) {
     const fileInput = document.getElementById('meshUpload');
     const undoBtn = document.getElementById('undoBtn');
     const redoBtn = document.getElementById('redoBtn');
+    const gridBtn = document.getElementById('gridToggleBtn');
+    
+
+
+    if (gridBtn) {
+       gridBtn.addEventListener('click', (e) => {e.preventDefault();
+            callbacks.onToggleGrid();
+        });
+    }
 
     // Undo / Redo Buttons
     if (undoBtn) undoBtn.addEventListener('click', (e) => {
@@ -49,6 +58,16 @@ export function setupUI(callbacks) {
         callbacks.onDelete();
         contextMenu.style.display = 'none';
     });
+}
+
+    const snapBtn = document.getElementById('snapToggleBtn');
+    let snapEnabled = false;
+    if (snapBtn) {
+        snapBtn.addEventListener('click', () => {
+            snapEnabled = !snapEnabled;
+            callbacks.onToggleSnap(snapEnabled);
+            snapBtn.classList.toggle('active', snapEnabled);
+        });
 }
 
 function handleFile(file, callbacks) {

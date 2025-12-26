@@ -14,9 +14,9 @@ export function setupKeyboard(transformControls, currentModelProvider, removeCal
         if (!model) return;
 
         switch (e.key.toLowerCase()) {
-            case 'w': transformControls.setMode('translate'); break;
-            case 'e': transformControls.setMode('rotate'); break;
-            case 'r': transformControls.setMode('scale'); break;
+            case 'g': transformControls.setMode('translate'); break;
+            case 'r': transformControls.setMode('rotate'); break;
+            case 's': transformControls.setMode('scale'); break;
             case 'delete': removeCallback(); break;
             case 'escape': transformControls.detach(); break;
         }
