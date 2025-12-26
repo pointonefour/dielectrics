@@ -72,7 +72,9 @@ function init() {
         onToggleGrid: () => {
             if (SceneModule.grid) {
                 SceneModule.grid.visible = !SceneModule.grid.visible;
+                 return SceneModule.grid.visible;
             }
+             return false;
         },
 
         onToggleSnap: (enabled) => {

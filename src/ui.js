@@ -7,17 +7,34 @@ export function setupUI(callbacks) {
     const fileInput = document.getElementById('meshUpload');
     const undoBtn = document.getElementById('undoBtn');
     const redoBtn = document.getElementById('redoBtn');
-    const gridBtn = document.getElementById('gridToggleBtn');
     
-
-
+    // --- GRID TOGGLE ---
+    const gridBtn = document.getElementById('gridToggleBtn');
     if (gridBtn) {
-       gridBtn.addEventListener('click', (e) => {e.preventDefault();
-            callbacks.onToggleGrid();
+        // Grid starts as VISIBLE, so make button BLUE immediately
+        gridBtn.classList.add('active'); 
+
+        gridBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            const isVisible = callbacks.onToggleGrid();
+            gridBtn.classList.toggle('active', isVisible);
         });
     }
 
-    // Undo / Redo Buttons
+    // --- SNAPPING TOGGLE ---
+    const snapBtn = document.getElementById('snapToggleBtn');
+    let snapEnabled = false;
+    if (snapBtn) {
+        snapBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            snapEnabled = !snapEnabled;
+            callbacks.onToggleSnap(snapEnabled);
+            // Toggle blue color based on snap state
+            snapBtn.classList.toggle('active', snapEnabled);
+        });
+    }
+
+    // --- UNDO / REDO ---
     if (undoBtn) undoBtn.addEventListener('click', (e) => {
         e.preventDefault();
         callbacks.onUndo();
@@ -28,7 +45,7 @@ export function setupUI(callbacks) {
         callbacks.onRedo();
     });
 
-    // File Upload
+    // --- FILE UPLOAD ---
     dropZone.addEventListener('click', () => fileInput.click());
     fileInput.addEventListener('change', (e) => {
         if (e.target.files.length > 0) handleFile(e.target.files[0], callbacks);
@@ -39,7 +56,7 @@ export function setupUI(callbacks) {
         if (e.dataTransfer.files.length > 0) handleFile(e.dataTransfer.files[0], callbacks);
     });
 
-    // Context Menu Buttons
+    // --- CONTEXT MENU ---
     const bindBtn = (id, mode) => {
         document.getElementById(id)?.addEventListener('mousedown', (e) => {
             e.stopPropagation();
@@ -58,17 +75,7 @@ export function setupUI(callbacks) {
         callbacks.onDelete();
         contextMenu.style.display = 'none';
     });
-}
-
-    const snapBtn = document.getElementById('snapToggleBtn');
-    let snapEnabled = false;
-    if (snapBtn) {
-        snapBtn.addEventListener('click', () => {
-            snapEnabled = !snapEnabled;
-            callbacks.onToggleSnap(snapEnabled);
-            snapBtn.classList.toggle('active', snapEnabled);
-        });
-}
+} // <--- setupUI ends HERE now
 
 function handleFile(file, callbacks) {
     loadModel(file, scene, (model) => {
