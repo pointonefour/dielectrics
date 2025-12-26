@@ -1,13 +1,12 @@
 import { TransformControls } from 'three/examples/jsm/controls/TransformControls.js';
 import * as SceneModule from './scene.js'; 
-import { getModelState, saveAction, undo, redo } from './history.js'; // Added undo, redo imports
+import { getModelState, saveAction, undo, redo } from './history.js'; 
 import { setupKeyboard } from './inputHandler.js';
 import { setupUI } from './ui.js';
 
 let transformControls, currentModel = null;
 let transformStartData = null;
 
-// Helper function to update the highlight
 function updateHighlight() {
     if (currentModel) {
         SceneModule.outlinePass.selectedObjects = [currentModel];
@@ -20,11 +19,14 @@ function init() {
     SceneModule.initScene();
     
     transformControls = new TransformControls(SceneModule.camera, SceneModule.renderer.domElement);
+    
+    // Add Gizmo to sceneUI to keep it sharp and avoid the outline glow
     const gizmo = transformControls.getHelper ? transformControls.getHelper() : transformControls;
-    SceneModule.scene.add(gizmo);
+    SceneModule.sceneUI.add(gizmo);
 
-    // Transform Events
-    transformControls.addEventListener('dragging-changed', (e) => SceneModule.controls.enabled = !e.value);
+    transformControls.addEventListener('dragging-changed', (e) => {
+        SceneModule.controls.enabled = !e.value;
+    });
     
     transformControls.addEventListener('mouseDown', () => { 
         if (currentModel) transformStartData = getModelState(currentModel); 
@@ -36,19 +38,16 @@ function init() {
         }
     });
 
-    // Input selection
     window.addEventListener('mousedown', handleSelection);
     window.addEventListener('contextmenu', handleContextMenu);
 
-    // Keyboard (Passes transformControls for undo/redo shortcuts)
     setupKeyboard(transformControls, () => currentModel, removeModel);
 
-    // UI Orchestration
     setupUI({
         onLoad: (model) => { 
             currentModel = model; 
-            transformControls.detach(); 
-            updateHighlight(); // Highlight the newly loaded model
+            transformControls.attach(currentModel); 
+            updateHighlight();
         },
         onSetMode: (mode) => { 
             if (currentModel) {
@@ -57,18 +56,20 @@ function init() {
             }
         },
         onDelete: removeModel,
-        onUndo: () => undo(transformControls), // Logic passed here
-        onRedo: () => redo(transformControls)  // Logic passed here
+        onUndo: () => undo(transformControls),
+        onRedo: () => redo(transformControls)
     });
 
     SceneModule.startAnimation();
 }
 
-// ... handleSelection, handleContextMenu, removeModel functions stay same as previous post ...
-
 function handleSelection(e) {
     if (e.target.closest('#contextMenu') || e.target.closest('#dropZone') || e.target.closest('.ui-button')) return;
     document.getElementById('contextMenu').style.display = 'none';
+
+    // If we are clicking the Transform Gizmo, don't change selection
+    if (transformControls.axis !== null) return;
+
     if (e.button !== 0) return;
 
     const hit = SceneModule.getClickedModel(e);
@@ -81,15 +82,18 @@ function handleSelection(e) {
         transformControls.detach(); 
     }
 
-    updateHighlight(); // Update the yellow border
+    updateHighlight();
 }
 
 function handleContextMenu(e) {
     const hit = SceneModule.getClickedModel(e);
     if (!hit) return;
+    
     e.preventDefault();
     currentModel = hit;
     transformControls.attach(hit);
+    updateHighlight();
+
     const menu = document.getElementById('contextMenu');
     menu.style.display = 'block';
     menu.style.left = `${e.clientX}px`; 
@@ -100,7 +104,7 @@ function removeModel() {
     if (currentModel) { 
         transformControls.detach(); 
 
-            currentModel.traverse((node) => {
+        currentModel.traverse((node) => {
             if (node.isMesh) {
                 node.geometry.dispose();
                 if (Array.isArray(node.material)) {
@@ -110,11 +114,10 @@ function removeModel() {
                 }
             }
         });
- 
 
         SceneModule.scene.remove(currentModel); 
         currentModel = null; 
-        updateHighlight(); // Clear border
+        updateHighlight();
     }
 }
 
