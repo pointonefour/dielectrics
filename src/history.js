@@ -13,10 +13,19 @@ export function getModelState(model) {
 
 export function applyState(model, state, transformControls) {
     if (!model || !state) return;
+
+    // 1. Copy the saved TRS data to the model
     model.position.copy(state.position);
     model.rotation.copy(state.rotation);
     model.scale.copy(state.scale);
-    if (transformControls) transformControls.updateMatrixWorld();
+
+    // 2. IMPORTANT: Force the model to recalculate its position in the world
+    model.updateMatrixWorld(true);
+
+    // 3. THE FIX: Use .update() instead of .updateMatrixWorld() for the Gizmo
+    if (transformControls && transformControls.object === model) {
+        transformControls.update(); 
+    }
 }
 
 export function saveAction(model, oldState, newState) {

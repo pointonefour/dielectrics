@@ -22,6 +22,13 @@
         align-items: flex-start;
       }
 
+      /* Buttons & Interactive Elements reset */
+      button { 
+        user-select: none; 
+        -webkit-tap-highlight-color: transparent; 
+        outline: none !important; 
+      }
+
       /* DropZone Styles */
       #dropZone {
         pointer-events: auto;
@@ -51,41 +58,41 @@
         transform: translateY(-2px);
       }
 
-          #dropOverlay {
-          position: fixed;
-          inset: 0;
-          z-index: 9999; /* On top of everything */
-          pointer-events: none; /* Prevents it from blocking clicks when invisible */
-          opacity: 0;
-          transition: all 0.4s ease;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          /* Purple inner glow */
-          box-shadow: inset 0 0 150px rgba(147, 51, 234, 0); 
-          background: rgba(147, 51, 234, 0);
-    }
+      /* Full Screen Glow */
+      #dropOverlay {
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        pointer-events: none;
+        opacity: 0;
+        visibility: hidden;
+        transition: opacity 0.4s, visibility 0.4s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: inset 0 0 150px rgba(147, 51, 234, 0); 
+        background: rgba(147, 51, 234, 0);
+      }
 
-        #dropOverlay.active {
+      #dropOverlay.active {
         opacity: 1;
-        background: rgba(147, 51, 234, 0.1); /* Subtle purple tint */
-        box-shadow: inset 0 0 200px rgba(147, 51, 234, 0.6); /* Deep purple glow */
+        visibility: visible;
+        background: rgba(147, 51, 234, 0.1);
+        box-shadow: inset 0 0 200px rgba(147, 51, 234, 0.6);
       }
 
       .glow-text {
-      font-family: sans-serif;
-      font-weight: 800;
-      font-size: 50px;
-      color: #a855f7;
-      letter-spacing: 10px;
-      text-shadow: 0 0 30px rgba(168, 85, 247, 0.8);
-      transform: scale(0.9);
-      transition: transform 0.4s ease;
+        font-family: sans-serif;
+        font-weight: 800;
+        font-size: 50px;
+        color: #a855f7;
+        letter-spacing: 10px;
+        text-shadow: 0 0 30px rgba(168, 85, 247, 0.8);
+        transform: scale(0.9);
+        transition: transform 0.4s ease;
       }
 
-#dropOverlay.active .glow-text {
-  transform: scale(1);
-}
+      #dropOverlay.active .glow-text { transform: scale(1); }
 
       /* Context Menu */
       .context-menu {
@@ -107,45 +114,60 @@
       .danger:hover { background: #ff4444 !important; }
       .menu-divider { height: 1px; background: #333; margin: 5px 0; }
 
-      /* History Buttons */
+      /* History Buttons Container */
       .history-controls {
         pointer-events: auto;
-        margin-top: 15px; /* Spacing below DropZone */
+        margin-top: 15px;
         display: flex;
-        top: 20px;
-        right: 180px;   
         gap: 10px;
         z-index: 100;
       }
 
+      /* Standard Button Look */
       .history-controls button {
-      background: rgba(30, 30, 30, 0.9) !important; /* Dark default */
-      border: 1.5px solid #444;
-      color: white;
-      padding: 5px 10px;
-      border-radius: 6px;
-      cursor: pointer;
-      font-size: 20px;
-      transition: all 0.2s;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      pointer-events: auto;
-}
+        background: rgba(30, 30, 30, 0.9) !important;
+        border: 1.5px solid #444 !important;
+        color: #888 !important;
+        padding: 5px 10px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 20px;
+        transition: all 0.1s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 44px;
+        min-height: 44px;
+        touch-action: manipulation;
+      }
 
+      /* Hover state */
+      .history-controls button:hover {
+        background: #444 !important;
+        color: #fff !important;
+        border-color: #666 !important;
+      }
 
-      .history-controls button.active {
-  background: #31c4e9 !important; /* The cyan/blue color */
-  color: #000 !important;
-  border-color: #ffffff !important;
-  box-shadow: 0 0 10px rgba(49, 196, 233, 0.5);
-}
+      /* THE FIX: Persistent Blue state */
+      /* We target #ui to ensure this rule is stronger than anything else */
+      #ui .history-controls button.active {
+        background-color: rgba(49, 196, 233, 0.2) !important;
+         color: #31c4e9 !important;
+        border-color: rgba(49, 196, 233, 1) !important;
+        box-shadow: 
+        0 0 10px rgba(49, 196, 233, 0.4), 
+        0 0 25px rgba(49, 196, 233, 0.6),
+        inset 0 0 10px rgba(49, 196, 233, 0.2) !important;
+        transform: scale(1.05); /* Slight pop when active */
+        opacity: 1 !important;
+      }
 
-     .history-controls button:hover {
-  background: #31c4e9 !important;
-  color: #000 !important;
-  border-color: #31c4e9 !important;
-}
+      #ui .history-controls button.active:hover {
+      background-color: #5ee2ff !important; /* Slightly brighter blue */
+       box-shadow: 
+        0 0 15px rgba(49, 196, 233, 0.6), 
+        0 0 35px rgba(49, 196, 233, 0.8) !important;
+      }
     </style>
   </head>
   <body>
@@ -153,23 +175,23 @@
       <!-- 1. Dropzone -->
       <div id="dropZone">Select from device</div>
 
-      <!-- Replace your old <div id="dropZone"> with this -->
-  <div id="dropOverlay">
-    <div class="glow-text">Drop your File</div>
-  </div>
+      <!-- 2. Full screen drop glow -->
+      <div id="dropOverlay">
+        <div class="glow-text">Drop your File</div>
+      </div>
       
-      <!-- 2. Undo/Redo Buttons (Inside UI div) -->
+      <!-- 3. Control Buttons -->
       <div class="history-controls">
         <button id="undoBtn" title="Undo (Ctrl+Z)">↶</button>
         <button id="redoBtn" title="Redo (Ctrl+Shift+Z)">↷</button>
         <button id="gridToggleBtn" class="active">▦</button>
-        <button id="snapToggleBtn" class="ui-button">⦻</button>
+        <button id="snapToggleBtn">⦻</button>
       </div>
 
       <input type="file" id="meshUpload" accept=".glb,.gltf,.obj,.stl,.ply,.dae,.hdr" hidden />
     </div>
 
-    <!-- 3. Context Menu -->
+    <!-- 4. Context Menu -->
     <div id="contextMenu" class="context-menu">
       <div class="menu-item danger" id="menuDelete"> Delete Model</div>
       <div class="menu-divider"></div>

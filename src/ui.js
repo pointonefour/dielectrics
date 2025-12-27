@@ -3,64 +3,83 @@ import { scene, camera, controls } from './scene.js';
 
 export function setupUI(callbacks) {
     const contextMenu = document.getElementById('contextMenu');
-    const dropOverlay = document.getElementById('dropOverlay'); // The glow layer
+    const dropOverlay = document.getElementById('dropOverlay');
     const fileInput = document.getElementById('meshUpload');
-    const dropZone = document.getElementById('dropZone'); // The button
-    
-    // --- FULL WINDOW DRAG EVENTS (The Glow) ---
-    
-    window.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        dropOverlay.classList.add('active'); // Show purple glow
-    });
+    const dropZone = document.getElementById('dropZone');
 
-    window.addEventListener('dragleave', (e) => {
-        // Only hide if the mouse actually leaves the browser window
-        if (e.relatedTarget === null) {
-            dropOverlay.classList.remove('active');
+    const uiEvent = 'mousedown'; // Matches 3D scene timing
+
+    /**
+     * Helper to bind buttons safely and stop event "bleeding"
+     * Passing 'el' (the button) into the callback function 'fn'
+     */
+    const bind = (id, fn) => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.addEventListener(uiEvent, (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                // We pass e.currentTarget (the button) so 'fn' can use it
+                fn(e.currentTarget); 
+            });
         }
+    };
+
+    // --- GRID TOGGLE ---
+    bind('gridToggleBtn', (btn) => {
+        const isVisible = callbacks.onToggleGrid();
+        if (isVisible) btn.classList.add('active');
+        else btn.classList.remove('active');
     });
 
-    window.addEventListener('drop', (e) => {
-        e.preventDefault();
-        dropOverlay.classList.remove('active'); // Hide glow
-
-        if (e.dataTransfer.files.length > 0) {
-            handleFile(e.dataTransfer.files[0], callbacks);
-        }
+    // --- SNAP TOGGLE ---
+    let snapActive = false;
+    bind('snapToggleBtn', (btn) => {
+        snapActive = !snapActive;
+        callbacks.onToggleSnap(snapActive);
+        if (snapActive) btn.classList.add('active');
+        else btn.classList.remove('active');
     });
 
-    // --- BUTTON CLICK UPLOAD ---
+    // --- HISTORY ---
+    bind('undoBtn', () => callbacks.onUndo());
+    bind('redoBtn', () => callbacks.onRedo());
+
+    // --- CONTEXT MENU MODES ---
+    bind('menuTranslate', () => callbacks.onSetMode('translate'));
+    bind('menuRotate', () => callbacks.onSetMode('rotate'));
+    bind('menuScale', () => callbacks.onSetMode('scale'));
+    bind('menuDelete', () => callbacks.onDelete());
+
+    // --- FILE UPLOAD ---
     if (dropZone) {
-        dropZone.addEventListener('click', () => fileInput.click());
+        dropZone.addEventListener('click', (e) => {
+            e.stopPropagation();
+            fileInput.click();
+        });
     }
 
     fileInput.addEventListener('change', (e) => {
         if (e.target.files.length > 0) handleFile(e.target.files[0], callbacks);
     });
 
-    // --- OTHER UI BUTTONS (Grid, Snap, Undo, Redo) ---
-    const gridBtn = document.getElementById('gridToggleBtn');
-    if (gridBtn) {
-        gridBtn.classList.add('active');
-        gridBtn.addEventListener('click', (e) => {
-            const isVisible = callbacks.onToggleGrid();
-            gridBtn.classList.toggle('active', isVisible);
-        });
-    }
+    // --- FULL SCREEN DRAG & DROP GLOW ---
+    window.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropOverlay.classList.add('active');
+    });
 
-    const snapBtn = document.getElementById('snapToggleBtn');
-    let snapActive = false;
-    if (snapBtn) {
-        snapBtn.addEventListener('click', () => {
-            snapActive = !snapActive;
-            callbacks.onToggleSnap(snapActive);
-            snapBtn.classList.toggle('active', snapActive);
-        });
-    }
+    window.addEventListener('dragleave', (e) => {
+        if (e.relatedTarget === null) dropOverlay.classList.remove('active');
+    });
 
-    // Undo/Redo/Context Menu Bindings (Keep your existing code for these)
-    setupActionButtons(callbacks, contextMenu);
+    window.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropOverlay.classList.remove('active');
+        if (e.dataTransfer.files.length > 0) {
+            handleFile(e.dataTransfer.files[0], callbacks);
+        }
+    });
 }
 
 function handleFile(file, callbacks) {
@@ -74,29 +93,9 @@ function handleFile(file, callbacks) {
             callbacks.onLoad(model);
         });
     } else if (envFormats.includes(extension)) {
-        console.log("HDR system coming soon...");
+        console.log("HDR detected:", file.name);
+        // This will be handled in background.js later
     } else {
         alert("Unsupported format: ." + extension);
     }
-}
-
-// Helper to keep setupUI clean
-function setupActionButtons(callbacks, contextMenu) {
-    document.getElementById('undoBtn')?.addEventListener('click', (e) => { e.preventDefault(); callbacks.onUndo(); });
-    document.getElementById('redoBtn')?.addEventListener('click', (e) => { e.preventDefault(); callbacks.onRedo(); });
-
-    const bindBtn = (id, mode) => {
-        document.getElementById(id)?.addEventListener('mousedown', (e) => {
-            e.stopPropagation(); e.preventDefault();
-            callbacks.onSetMode(mode);
-            contextMenu.style.display = 'none';
-        });
-    };
-    bindBtn('menuTranslate', 'translate');
-    bindBtn('menuRotate', 'rotate');
-    bindBtn('menuScale', 'scale');
-    document.getElementById('menuDelete')?.addEventListener('mousedown', (e) => {
-        e.stopPropagation(); callbacks.onDelete();
-        contextMenu.style.display = 'none';
-    });
 }

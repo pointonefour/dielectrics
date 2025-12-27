@@ -95,13 +95,22 @@ function init() {
  * Handles Left-Click Selection
  */
 function handleSelection(e) {
-    // 1. Ignore if clicking UI elements
-    if (e.target.closest('#contextMenu') || e.target.closest('#dropZone') || e.target.closest('.ui-button')) return;
+    // 1. IMPROVED UI GUARD: Prevent 3D selection if clicking ANY part of the UI
+    // Added .history-controls and 'button' to catch all header/mobile interactions
+    if (
+        e.target.closest('#contextMenu') || 
+        e.target.closest('#dropZone') || 
+        e.target.closest('.ui-button') ||
+        e.target.closest('.history-controls') || 
+        e.target.closest('button')
+    ) {
+        return; 
+    }
     
     // 2. Hide context menu
     document.getElementById('contextMenu').style.display = 'none';
 
-    // 3. If clicking the Gizmo handles, exit
+    // 3. If clicking the Gizmo handles, exit (prevents deselecting while moving)
     if (transformControls.axis !== null) return;
 
     // 4. Handle Left-Click only
@@ -110,16 +119,18 @@ function handleSelection(e) {
     const hit = SceneModule.getClickedModel(e);
 
     if (hit) { 
+        // We hit a model: Select it
         currentModel = hit; 
         transformControls.attach(currentModel); 
     } else {
-        // If clicking empty space, only deselect if not currently transforming
+        // We hit empty space: Deselect only if we aren't currently dragging the gizmo
         if (!transformControls.dragging) { 
             currentModel = null; 
             transformControls.detach(); 
         }
     }
 
+    // 5. Update the yellow outline
     updateHighlight();
 }
 
