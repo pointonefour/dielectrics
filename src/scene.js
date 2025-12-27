@@ -26,6 +26,8 @@ export function initScene() {
     renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setPixelRatio(window.devicePixelRatio);
     renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.2; 
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.autoClear = false; 
     document.body.appendChild(renderer.domElement);

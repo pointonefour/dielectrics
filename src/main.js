@@ -1,39 +1,29 @@
-import * as THREE from 'three'; // Added to support snapping math
+import * as THREE from 'three'; 
 import { TransformControls } from 'three/examples/jsm/controls/TransformControls.js';
 import * as SceneModule from './scene.js'; 
 import { getModelState, saveAction, undo, redo } from './history.js'; 
 import { setupKeyboard } from './inputHandler.js';
 import { setupUI } from './ui.js';
+import { convertToDielectric } from './dielectric.js'; // FIX: Added missing import
 
 let transformControls, currentModel = null;
 let transformStartData = null;
 
-/**
- * Updates the yellow outline around the selected model
- */
 function updateHighlight() {
     SceneModule.outlinePass.selectedObjects = currentModel ? [currentModel] : [];
 }
 
-/**
- * Main Initialization
- */
 function init() {
     SceneModule.initScene();
     
-    // Setup Transform Controls
     transformControls = new TransformControls(SceneModule.camera, SceneModule.renderer.domElement);
-    
-    // Add Gizmo to sceneUI (Overlay layer) to keep it sharp and avoid glow
     const gizmo = transformControls.getHelper ? transformControls.getHelper() : transformControls;
     SceneModule.sceneUI.add(gizmo);
 
-    // Sync OrbitControls and TransformControls
     transformControls.addEventListener('dragging-changed', (e) => {
         SceneModule.controls.enabled = !e.value;
     });
     
-    // History Tracking
     transformControls.addEventListener('mouseDown', () => { 
         if (currentModel) transformStartData = getModelState(currentModel); 
     });
@@ -44,18 +34,14 @@ function init() {
         }
     });
 
-    // Global Input Listeners
     window.addEventListener('mousedown', handleSelection);
     window.addEventListener('contextmenu', handleContextMenu);
 
-    // Keyboard Shortcuts
     setupKeyboard(transformControls, () => currentModel, removeModel);
 
-    // UI Callback Logic
     setupUI({
         onLoad: (model) => { 
             currentModel = model; 
-            // We detach so it loads "clean", but highlight it so the user sees it's active
             transformControls.detach(); 
             updateHighlight();
         },
@@ -68,7 +54,6 @@ function init() {
         onDelete: removeModel,
         onUndo: () => undo(transformControls),
         onRedo: () => redo(transformControls),
-
         onToggleGrid: () => {
             if (SceneModule.grid) {
                 SceneModule.grid.visible = !SceneModule.grid.visible;
@@ -76,7 +61,6 @@ function init() {
             }
              return false;
         },
-
         onToggleSnap: (enabled) => {
             if (enabled) {
                 transformControls.setTranslationSnap(1); 
@@ -85,66 +69,61 @@ function init() {
                 transformControls.setTranslationSnap(null);
                 transformControls.setRotationSnap(null);
             }
-        }
+        },
+       onConvertDielectric: () => {
+    if (currentModel) {
+        convertToDielectric(currentModel); // Calling it directly
+        return true; 
+    }
+    return false;
+},
+        getCurrentModel: () => currentModel
     });
 
     SceneModule.startAnimation();
 }
 
-/**
- * Handles Left-Click Selection
- */
 function handleSelection(e) {
-    // 1. IMPROVED UI GUARD: Prevent 3D selection if clicking ANY part of the UI
-    // Added .history-controls and 'button' to catch all header/mobile interactions
+    // 1. UI GUARD
     if (
         e.target.closest('#contextMenu') || 
-        e.target.closest('#dropZone') || 
-        e.target.closest('.ui-button') ||
+        e.target.closest('#bgMenu') || 
+        e.target.closest('#matMenu') || 
+        e.target.closest('#primitiveMenu') || 
         e.target.closest('.history-controls') || 
+        e.target.closest('#dropZone') ||
         e.target.closest('button')
     ) {
         return; 
     }
     
-    // 2. Hide context menu
     document.getElementById('contextMenu').style.display = 'none';
 
-    // 3. If clicking the Gizmo handles, exit (prevents deselecting while moving)
-    if (transformControls.axis !== null) return;
+    // CLOSE ALL MENUS ON CLICK
+    document.querySelectorAll('.sleek-menu').forEach(menu => {
+        menu.classList.remove('active');
+    });
 
-    // 4. Handle Left-Click only
+    if (transformControls.axis !== null) return;
     if (e.button !== 0) return;
 
     const hit = SceneModule.getClickedModel(e);
 
     if (hit) { 
-        // We hit a model: Select it
         currentModel = hit; 
         transformControls.attach(currentModel); 
     } else {
-        // We hit empty space: Deselect only if we aren't currently dragging the gizmo
         if (!transformControls.dragging) { 
             currentModel = null; 
             transformControls.detach(); 
         }
     }
 
-     const bgMenu = document.getElementById('bgMenu');
-    if (bgMenu && bgMenu.classList.contains('active') && !e.target.closest('#bgMenu') && !e.target.closest('#bgSettingsBtn')) {
-    bgMenu.classList.remove('active');
-    }
-
-    // 5. Update the yellow outline
     updateHighlight();
 }
 
-/**
- * Handles Right-Click Context Menu
- */
 function handleContextMenu(e) {
     e.preventDefault();
-
     const hit = SceneModule.getClickedModel(e);
     
     if (hit) {
@@ -161,14 +140,9 @@ function handleContextMenu(e) {
     }
 }
 
-/**
- * Cleanup and Remove selected model
- */
 function removeModel() {
     if (currentModel) { 
         transformControls.detach(); 
-
-        // Dispose of GPU resources to prevent memory leaks
         currentModel.traverse((node) => {
             if (node.isMesh) {
                 node.geometry.dispose();
@@ -179,10 +153,7 @@ function removeModel() {
                 }
             }
         });
-
-        // CRITICAL: Remove from modelGroup, not the scene!
         SceneModule.modelGroup.remove(currentModel); 
-        
         currentModel = null; 
         updateHighlight();
     }
