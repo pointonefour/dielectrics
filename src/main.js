@@ -130,6 +130,11 @@ function handleSelection(e) {
         }
     }
 
+     const bgMenu = document.getElementById('bgMenu');
+    if (bgMenu && bgMenu.classList.contains('active') && !e.target.closest('#bgMenu') && !e.target.closest('#bgSettingsBtn')) {
+    bgMenu.classList.remove('active');
+    }
+
     // 5. Update the yellow outline
     updateHighlight();
 }
