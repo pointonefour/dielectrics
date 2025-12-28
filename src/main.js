@@ -3,8 +3,8 @@ import { TransformControls } from 'three/examples/jsm/controls/TransformControls
 import * as SceneModule from './scene.js'; 
 import { getModelState, saveAction, undo, redo } from './history.js'; 
 import { setupKeyboard } from './inputHandler.js';
-import { setupUI } from './ui.js';
-import { convertToDielectric } from './dielectric.js'; // FIX: Added missing import
+import { setupUI, syncMaterialSliders } from './ui.js';
+import { convertToDielectric } from './engine.js'; 
 
 let transformControls, currentModel = null;
 let transformStartData = null;
@@ -24,18 +24,9 @@ function init() {
         SceneModule.controls.enabled = !e.value;
     });
     
-    transformControls.addEventListener('mouseDown', () => { 
-        if (currentModel) transformStartData = getModelState(currentModel); 
-    });
-    
-    transformControls.addEventListener('mouseUp', () => {
-        if (currentModel && transformStartData) {
-            saveAction(currentModel, transformStartData, getModelState(currentModel));
-        }
-    });
-
+    // Global Listeners
     window.addEventListener('mousedown', handleSelection);
-    window.addEventListener('contextmenu', handleContextMenu);
+    window.addEventListener('contextmenu', handleContextMenu); // This handles the Menu popup
 
     setupKeyboard(transformControls, () => currentModel, removeModel);
 
@@ -44,6 +35,7 @@ function init() {
             currentModel = model; 
             transformControls.detach(); 
             updateHighlight();
+            syncMaterialSliders(model);
         },
         onSetMode: (mode) => { 
             if (currentModel) {
@@ -55,11 +47,8 @@ function init() {
         onUndo: () => undo(transformControls),
         onRedo: () => redo(transformControls),
         onToggleGrid: () => {
-            if (SceneModule.grid) {
-                SceneModule.grid.visible = !SceneModule.grid.visible;
-                 return SceneModule.grid.visible;
-            }
-             return false;
+            SceneModule.grid.visible = !SceneModule.grid.visible;
+            return SceneModule.grid.visible;
         },
         onToggleSnap: (enabled) => {
             if (enabled) {
@@ -70,71 +59,77 @@ function init() {
                 transformControls.setRotationSnap(null);
             }
         },
-       onConvertDielectric: () => {
-    if (currentModel) {
-        convertToDielectric(currentModel); // Calling it directly
-        return true; 
-    }
-    return false;
-},
+        onConvertDielectric: () => {
+            if (currentModel) {
+                convertToDielectric(currentModel); 
+                return true; 
+            }
+            return false;
+        },
         getCurrentModel: () => currentModel
     });
 
     SceneModule.startAnimation();
 }
 
+/**
+ * FIXED: handleSelection only handles LEFT-CLICK
+ */
 function handleSelection(e) {
-    // 1. UI GUARD
-    if (
-        e.target.closest('#contextMenu') || 
-        e.target.closest('#bgMenu') || 
-        e.target.closest('#matMenu') || 
-        e.target.closest('#primitiveMenu') || 
-        e.target.closest('.history-controls') || 
-        e.target.closest('#dropZone') ||
-        e.target.closest('button')
-    ) {
+    // 1. Guard: If clicking UI or the Context Menu itself, do nothing
+    if (e.target.closest('#contextMenu') || e.target.closest('.sleek-menu') || e.target.closest('.history-controls') || e.target.closest('button')) {
         return; 
     }
-    
-    document.getElementById('contextMenu').style.display = 'none';
 
-    // CLOSE ALL MENUS ON CLICK
-    document.querySelectorAll('.sleek-menu').forEach(menu => {
-        menu.classList.remove('active');
-    });
-
-    if (transformControls.axis !== null) return;
+    // 2. IMPORTANT: Only run this logic on LEFT CLICK (button 0)
+    // If it's a right click (button 2), we exit immediately so the menu can show
     if (e.button !== 0) return;
 
+    // 3. Hide the context menu and panels on a new left click
+    document.getElementById('contextMenu').style.display = 'none';
+    document.querySelectorAll('.sleek-menu').forEach(menu => menu.classList.remove('active'));
+
+    // 4. Transform Control check
+    if (transformControls.axis !== null) return;
+
+    // 5. Raycast to find model
     const hit = SceneModule.getClickedModel(e);
 
     if (hit) { 
         currentModel = hit; 
         transformControls.attach(currentModel); 
+        syncMaterialSliders(currentModel);
     } else {
         if (!transformControls.dragging) { 
             currentModel = null; 
             transformControls.detach(); 
+            syncMaterialSliders(null);
         }
     }
 
     updateHighlight();
 }
 
+/**
+ * FIXED: handleContextMenu explicitly shows the menu
+ */
 function handleContextMenu(e) {
-    e.preventDefault();
+    e.preventDefault(); // Stop browser menu
+
     const hit = SceneModule.getClickedModel(e);
     
     if (hit) {
         currentModel = hit;
         transformControls.attach(currentModel);
         updateHighlight();
+        syncMaterialSliders(currentModel);
 
         const menu = document.getElementById('contextMenu');
         menu.style.display = 'block';
         menu.style.left = `${e.clientX}px`; 
         menu.style.top = `${e.clientY}px`;
+        
+        console.log("Context Menu triggered on model");
     } else {
         document.getElementById('contextMenu').style.display = 'none';
     }
@@ -143,19 +138,10 @@ function handleContextMenu(e) {
 function removeModel() {
     if (currentModel) { 
         transformControls.detach(); 
-        currentModel.traverse((node) => {
-            if (node.isMesh) {
-                node.geometry.dispose();
-                if (Array.isArray(node.material)) {
-                    node.material.forEach(m => m.dispose());
-                } else {
-                    node.material.dispose();
-                }
-            }
-        });
         SceneModule.modelGroup.remove(currentModel); 
         currentModel = null; 
         updateHighlight();
+        syncMaterialSliders(null);
     }
 }
 
