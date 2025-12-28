@@ -13,20 +13,39 @@ function updateHighlight() {
     SceneModule.outlinePass.selectedObjects = currentModel ? [currentModel] : [];
 }
 
+/**
+ * Main Initialization
+ */
 function init() {
     SceneModule.initScene();
     
+    // Setup Transform Controls
     transformControls = new TransformControls(SceneModule.camera, SceneModule.renderer.domElement);
     const gizmo = transformControls.getHelper ? transformControls.getHelper() : transformControls;
     SceneModule.sceneUI.add(gizmo);
 
+    // --- 1. HISTORY LISTENERS FOR TRANSFORM CONTROLS ---
+    // Capture state BEFORE movement starts
+    transformControls.addEventListener('mouseDown', () => { 
+        if (currentModel) transformStartData = getModelState(currentModel); 
+    });
+    
+    // Capture state AFTER movement ends and save to history
+    transformControls.addEventListener('mouseUp', () => {
+        if (currentModel && transformStartData) {
+            const newState = getModelState(currentModel);
+            saveAction(currentModel, transformStartData, newState);
+        }
+    });
+
+    // OrbitControls / TransformControls synchronization
     transformControls.addEventListener('dragging-changed', (e) => {
         SceneModule.controls.enabled = !e.value;
     });
     
     // Global Listeners
     window.addEventListener('mousedown', handleSelection);
-    window.addEventListener('contextmenu', handleContextMenu); // This handles the Menu popup
+    window.addEventListener('contextmenu', handleContextMenu); 
 
     setupKeyboard(transformControls, () => currentModel, removeModel);
 
@@ -44,8 +63,11 @@ function init() {
             }
         },
         onDelete: removeModel,
-        onUndo: () => undo(transformControls),
+        
+        // --- 2. UPDATED HISTORY CALLBACKS ---
+        onUndo: () => undo(transformControls), // Pass controls so gizmo moves back too
         onRedo: () => redo(transformControls),
+
         onToggleGrid: () => {
             SceneModule.grid.visible = !SceneModule.grid.visible;
             return SceneModule.grid.visible;
@@ -73,26 +95,20 @@ function init() {
 }
 
 /**
- * FIXED: handleSelection only handles LEFT-CLICK
+ * Handles Left-Click Selection
  */
 function handleSelection(e) {
-    // 1. Guard: If clicking UI or the Context Menu itself, do nothing
-    if (e.target.closest('#contextMenu') || e.target.closest('.sleek-menu') || e.target.closest('.history-controls') || e.target.closest('button')) {
+    if (e.target.closest('#contextMenu') || e.target.closest('.sleek-menu') || e.target.closest('.history-controls') || e.target.closest('#dropZone') || e.target.closest('button')) {
         return; 
     }
 
-    // 2. IMPORTANT: Only run this logic on LEFT CLICK (button 0)
-    // If it's a right click (button 2), we exit immediately so the menu can show
     if (e.button !== 0) return;
 
-    // 3. Hide the context menu and panels on a new left click
     document.getElementById('contextMenu').style.display = 'none';
     document.querySelectorAll('.sleek-menu').forEach(menu => menu.classList.remove('active'));
 
-    // 4. Transform Control check
     if (transformControls.axis !== null) return;
 
-    // 5. Raycast to find model
     const hit = SceneModule.getClickedModel(e);
 
     if (hit) { 
@@ -111,10 +127,10 @@ function handleSelection(e) {
 }
 
 /**
- * FIXED: handleContextMenu explicitly shows the menu
+ * Handles Right-Click Context Menu
  */
 function handleContextMenu(e) {
-    e.preventDefault(); // Stop browser menu
+    e.preventDefault(); 
 
     const hit = SceneModule.getClickedModel(e);
     
@@ -128,8 +144,6 @@ function handleContextMenu(e) {
         menu.style.display = 'block';
         menu.style.left = `${e.clientX}px`; 
         menu.style.top = `${e.clientY}px`;
-        
-        console.log("Context Menu triggered on model");
     } else {
         document.getElementById('contextMenu').style.display = 'none';
     }

@@ -27,13 +27,16 @@ export function syncMaterialSliders(model) {
     }
 }
 
+/**
+ * Shared Menu Positioning Logic
+ */
 function positionMenu(btn, menu) {
     if (window.innerWidth > 500) {
         const rect = btn.getBoundingClientRect();
         let left = rect.left;
         if (left + 240 > window.innerWidth - 20) left = window.innerWidth - 260;
         let top = rect.bottom + 10;
-        if (top + 300 > window.innerHeight - 20) top = rect.top - 310;
+        if (top + 350 > window.innerHeight - 20) top = rect.top - 360;
         menu.style.left = `${left}px`;
         menu.style.top = `${top}px`;
     } else {
@@ -41,6 +44,9 @@ function positionMenu(btn, menu) {
     }
 }
 
+/**
+ * Greys out background sliders if HDR is active
+ */
 function updateBackgroundUI() {
     const mode = Background.getMode();
     const colorSection = document.getElementById('colorControls');
@@ -68,18 +74,40 @@ export function setupUI(callbacks) {
         if (el) el.addEventListener('mousedown', (e) => {
             e.preventDefault(); e.stopPropagation();
             fn(e.currentTarget);
-            e.currentTarget.blur();
         });
     };
 
-    // Material Inputs
+    // --- 1. DRAG & DROP LISTENERS (FIXED) ---
+    window.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        e.stopPropagation(); // Stop browser from taking over
+        if (dropOverlay) dropOverlay.classList.add('active');
+    });
+
+    window.addEventListener('dragleave', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (e.relatedTarget === null && dropOverlay) dropOverlay.classList.remove('active');
+    });
+
+    window.addEventListener('drop', (e) => {
+        e.preventDefault();
+        e.stopPropagation(); // CRITICAL: Stop browser from opening the file
+        if (dropOverlay) dropOverlay.classList.remove('active');
+        
+        if (e.dataTransfer && e.dataTransfer.files.length > 0) {
+            handleFile(e.dataTransfer.files[0], callbacks);
+        }
+    });
+
+    // --- 2. MATERIAL INPUTS ---
     const onMaterialInput = () => {
         const current = callbacks.getCurrentModel();
         if (!current) return;
-        let targetMat = null;
-        current.traverse(child => { if (child.isMesh && !targetMat) targetMat = child.material; });
-        if (targetMat) {
-            updateMaterialInstance(targetMat, {
+        let mat = null;
+        current.traverse(c => { if (c.isMesh && !mat) mat = c.material; });
+        if (mat) {
+            updateMaterialInstance(mat, {
                 ior: parseFloat(document.getElementById('matIOR').value),
                 transmission: parseFloat(document.getElementById('matTransmission').value),
                 roughness: parseFloat(document.getElementById('matRoughness').value),
@@ -89,52 +117,57 @@ export function setupUI(callbacks) {
         }
     };
     ['matIOR', 'matTransmission', 'matRoughness', 'matThickness', 'matColor'].forEach(id => {
-        document.getElementById(id).addEventListener('input', onMaterialInput);
+        const el = document.getElementById(id);
+        if (el) el.addEventListener('input', onMaterialInput);
     });
 
-    // Toggles
+    // --- 3. TOP BUTTONS & CONTEXT MENU ---
     bind('bgSettingsBtn', (btn) => {
-        const isActive = bgMenu.classList.contains('active');
+        const active = bgMenu.classList.contains('active');
         document.querySelectorAll('.sleek-menu').forEach(m => m.classList.remove('active'));
-        if (!isActive) { positionMenu(btn, bgMenu); bgMenu.classList.add('active'); }
+        if (!active) { positionMenu(btn, bgMenu); bgMenu.classList.add('active'); }
     });
     bind('matSettingsBtn', () => {
-        const isActive = matMenu.classList.contains('active');
+        const active = matMenu.classList.contains('active');
         document.querySelectorAll('.sleek-menu').forEach(m => m.classList.remove('active'));
-        if (!isActive) { matMenu.classList.add('active'); syncMaterialSliders(callbacks.getCurrentModel()); }
+        if (!active) { matMenu.classList.add('active'); syncMaterialSliders(callbacks.getCurrentModel()); }
     });
     bind('primitiveMenuBtn', (btn) => {
-        const isActive = primitiveMenu.classList.contains('active');
+        const active = primitiveMenu.classList.contains('active');
         document.querySelectorAll('.sleek-menu').forEach(m => m.classList.remove('active'));
-        if (!isActive) { positionMenu(btn, primitiveMenu); primitiveMenu.classList.add('active'); }
+        if (!active) { positionMenu(btn, primitiveMenu); primitiveMenu.classList.add('active'); }
     });
 
-    // Conversion
+    // Restored Context Menu Bindings
     bind('menuDielectric', () => {
-        const success = callbacks.onConvertDielectric();
-        if (success) {
+        if (callbacks.onConvertDielectric()) {
             document.getElementById('contextMenu').style.display = 'none';
             matMenu.classList.add('active');
             syncMaterialSliders(callbacks.getCurrentModel());
         }
     });
-    document.getElementById('applyMatBtn').addEventListener('click', () => {
+    bind('menuTranslate', () => { callbacks.onSetMode('translate'); document.getElementById('contextMenu').style.display = 'none'; });
+    bind('menuRotate', () => { callbacks.onSetMode('rotate'); document.getElementById('contextMenu').style.display = 'none'; });
+    bind('menuScale', () => { callbacks.onSetMode('scale'); document.getElementById('contextMenu').style.display = 'none'; });
+    bind('menuDelete', () => { callbacks.onDelete(); document.getElementById('contextMenu').style.display = 'none'; });
+    
+    bind('applyMatBtn', () => {
         const current = callbacks.getCurrentModel();
         if (current) { convertToDielectric(current); syncMaterialSliders(current); }
     });
 
-    // Primitives
+    // --- 4. PRIMITIVES ---
     ['addSphere', 'addTorus', 'addBox'].forEach(id => {
-        document.getElementById(id).addEventListener('click', () => {
-            const type = id.replace('add', '').toLowerCase();
-            const model = Primitives.spawnPrimitive(type);
+        const el = document.getElementById(id);
+        if (el) el.addEventListener('click', () => {
+            const model = Primitives.spawnPrimitive(id.replace('add', '').toLowerCase());
             primitiveMenu.classList.remove('active');
             callbacks.onLoad(model);
             syncMaterialSliders(model);
         });
     });
 
-    // Background & System
+    // --- 5. BACKGROUND & SYSTEM ---
     bind('removeHDRBtn', () => { Background.setSolidBackground(document.getElementById('bgColorPicker').value); updateBackgroundUI(); });
     document.getElementById('bgColorPicker').addEventListener('input', (e) => Background.setSolidBackground(e.target.value));
     
@@ -142,36 +175,43 @@ export function setupUI(callbacks) {
         if (Background.getMode() === 'HDR') return;
         Background.setGradientBackground(document.getElementById('gradColor1').value, document.getElementById('gradColor2').value, document.getElementById('gradRotation').value);
     };
-    ['gradColor1', 'gradColor2', 'gradRotation'].forEach(id => document.getElementById(id).addEventListener('input', onGradInput));
+    ['gradColor1', 'gradColor2', 'gradRotation'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener('input', onGradInput);
+    });
 
     const onHDRParamInput = () => Background.updateParams(parseFloat(document.getElementById('bgIntensity').value), parseFloat(document.getElementById('bgBlur').value));
-    ['bgIntensity', 'bgBlur'].forEach(id => document.getElementById(id).addEventListener('input', onHDRParamInput));
+    ['bgIntensity', 'bgBlur'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener('input', onHDRParamInput);
+    });
 
     bind('gridToggleBtn', (btn) => { const v = callbacks.onToggleGrid(); v ? btn.classList.add('active') : btn.classList.remove('active'); });
     let snap = false;
     bind('snapToggleBtn', (btn) => { snap = !snap; callbacks.onToggleSnap(snap); snap ? btn.classList.add('active') : btn.classList.remove('active'); });
     bind('undoBtn', () => callbacks.onUndo());
     bind('redoBtn', () => callbacks.onRedo());
-    bind('menuTranslate', () => callbacks.onSetMode('translate'));
-    bind('menuRotate', () => callbacks.onSetMode('rotate'));
-    bind('menuScale', () => callbacks.onSetMode('scale'));
-    bind('menuDelete', () => callbacks.onDelete());
 
-    // Files
-    window.addEventListener('dragover', (e) => { e.preventDefault(); dropOverlay.classList.add('active'); });
-    window.addEventListener('dragleave', (e) => { if (e.relatedTarget === null) dropOverlay.classList.remove('active'); });
-    window.addEventListener('drop', (e) => {
-        e.preventDefault(); dropOverlay.classList.remove('active');
-        if (e.dataTransfer.files.length > 0) handleFile(e.dataTransfer.files[0], callbacks);
-    });
+    // --- 6. MANUAL UPLOAD ---
     document.getElementById('dropZone').addEventListener('click', () => fileInput.click());
-    fileInput.addEventListener('change', (e) => { if (e.target.files.length > 0) { handleFile(e.target.files[0], callbacks); e.target.value = ''; } });
+    fileInput.addEventListener('change', (e) => {
+        if (e.target.files.length > 0) {
+            handleFile(e.target.files[0], callbacks);
+            e.target.value = ''; // Clear value to allow same file re-upload
+        }
+    });
 }
 
+/**
+ * Core File Handler logic
+ */
 function handleFile(file, callbacks) {
     const ext = file.name.split('.').pop().toLowerCase();
     if (['glb', 'gltf', 'obj', 'stl', 'ply', 'dae'].includes(ext)) {
-        loadModel(file, scene, (model) => { fitCameraToModel(model, camera, controls); callbacks.onLoad(model); });
+        loadModel(file, scene, (model) => {
+            fitCameraToModel(model, camera, controls);
+            callbacks.onLoad(model);
+        });
     } else if (['hdr', 'exr'].includes(ext)) {
         Background.setHDRBackground(file, () => updateBackgroundUI());
     }
