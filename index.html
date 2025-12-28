@@ -197,41 +197,45 @@
     </div>
 
     <!-- 6. Dielectric Settings (Side Panel) -->
-    <div id="matMenu" class="sleek-menu side-panel">
-      <div class="menu-section" style="margin-top: 30px;">
-        <span class="menu-label" style="font-size: 14px; color: #31c4e9;">Dielectric Material</span>
-        <p style="font-size: 10px; color: #777;">Properties are applied to the active master material.</p>
-      </div>
+    <!-- 6. Dielectric Settings (Side Panel) -->
+<div id="matMenu" class="sleek-menu side-panel">
+  <div class="menu-section" style="margin-top: 30px;">
+    <span class="menu-label" style="font-size: 14px; color: #31c4e9;">Dielectric Material</span>
+  </div>
 
-      <div class="menu-section">
-        <span class="menu-label">Refraction (IOR)</span>
-        <input type="range" id="matIOR" min="1.0" max="2.4" step="0.01" value="1.5">
-        <div style="display:flex; justify-content:space-between; font-size:8px; color:#555; margin-top:4px;"><span>Air(1.0)</span><span>Glass(1.5)</span><span>Diamond(2.4)</span></div>
-      </div>
+  <div class="menu-section">
+    <span class="menu-label">Refraction (IOR)</span>
+    <input type="range" id="matIOR" min="1.0" max="2.4" step="0.01" value="1.5">
+  </div>
 
-      <div class="menu-section">
-        <span class="menu-label">Transmission</span>
-        <input type="range" id="matTransmission" min="0" max="1" step="0.01" value="1">
-      </div>
+  <div class="menu-section">
+    <span class="menu-label">Transmission (Glassiness)</span>
+    <input type="range" id="matTransmission" min="0" max="1" step="0.01" value="1">
+  </div>
 
-      <div class="menu-section">
-        <span class="menu-label">Roughness</span>
-        <input type="range" id="matRoughness" min="0" max="1" step="0.01" value="0.05">
-      </div>
+  <!-- THIS WAS LIKELY MISSING OR BROKEN -->
+  <div class="menu-section">
+    <span class="menu-label">Surface Opacity (Visibility)</span>
+    <input type="range" id="matOpacity" min="0" max="1" step="0.01" value="1">
+  </div>
 
-      <div class="menu-section">
-        <span class="menu-label">Thickness</span>
-        <input type="range" id="matThickness" min="0" max="5" step="0.1" value="1.0">
-      </div>
-      
-      <div class="menu-section">
-        <span class="menu-label">Tint</span>
-        <input type="color" id="matColor" value="#ffffff" style="width:100%">
-      </div>
+  <div class="menu-section">
+    <span class="menu-label">Roughness (Frost)</span>
+    <input type="range" id="matRoughness" min="0" max="1" step="0.01" value="0.05">
+  </div>
 
-      <button id="applyMatBtn" style="width:100%; padding:12px; background:#31c4e9; color:black; border:none; border-radius:8px; font-weight:bold; cursor:pointer; margin-top:5px; font-size:12px;">Revert</button>
-    </div>
+  <div class="menu-section">
+    <span class="menu-label">Thickness</span>
+    <input type="range" id="matThickness" min="0" max="5" step="0.1" value="1.0">
+  </div>
+  
+  <div class="menu-section">
+    <span class="menu-label">Tint</span>
+    <input type="color" id="matColor" value="#ffffff" style="width:100%">
+  </div>
 
+  <button id="applyMatBtn" style="width:100%; padding:12px; background:#31c4e9; color:black; border:none; border-radius:8px; font-weight:bold; cursor:pointer; margin-top:5px; font-size:12px;">Revert</button>
+</div>
     <!-- 7. Primitives Menu -->
     <div id="primitiveMenu" class="sleek-menu" style="width: 160px;">
         <div class="menu-label" style="text-align:center;">Add Shape</div>

@@ -9,21 +9,35 @@ import * as Primitives from './primitives.js';
  */
 export function syncMaterialSliders(model) {
     if (!model) return;
+
     let mat = null;
     model.traverse(child => { if (child.isMesh && !mat) mat = child.material; });
 
     const matMenu = document.getElementById('matMenu');
     if (mat && mat.isMeshPhysicalMaterial) {
-        document.getElementById('matIOR').value = mat.ior;
-        document.getElementById('matTransmission').value = mat.transmission;
-        document.getElementById('matRoughness').value = mat.roughness;
-        document.getElementById('matThickness').value = mat.thickness;
-        document.getElementById('matColor').value = `#${mat.color.getHexString()}`;
+        
+        // Helper function to update elements safely
+        const safeSet = (id, value) => {
+            const el = document.getElementById(id);
+            if (el) el.value = value;
+        };
+
+        safeSet('matIOR', mat.ior);
+        safeSet('matTransmission', mat.transmission);
+        safeSet('matOpacity', mat.opacity); 
+        safeSet('matRoughness', mat.roughness);
+        safeSet('matThickness', mat.thickness);
+        
+        const colorEl = document.getElementById('matColor');
+        if (colorEl) colorEl.value = `#${mat.color.getHexString()}`;
+
         matMenu.style.opacity = "1";
         matMenu.style.pointerEvents = "auto";
     } else {
-        matMenu.style.opacity = "0.5";
-        matMenu.style.pointerEvents = "none";
+        if (matMenu) {
+            matMenu.style.opacity = "0.5";
+            matMenu.style.pointerEvents = "none";
+        }
     }
 }
 
@@ -104,19 +118,31 @@ export function setupUI(callbacks) {
     const onMaterialInput = () => {
         const current = callbacks.getCurrentModel();
         if (!current) return;
-        let mat = null;
-        current.traverse(c => { if (c.isMesh && !mat) mat = c.material; });
-        if (mat) {
-            updateMaterialInstance(mat, {
-                ior: parseFloat(document.getElementById('matIOR').value),
-                transmission: parseFloat(document.getElementById('matTransmission').value),
-                roughness: parseFloat(document.getElementById('matRoughness').value),
-                thickness: parseFloat(document.getElementById('matThickness').value),
-                color: document.getElementById('matColor').value
+
+        let targetMat = null;
+        current.traverse(c => { if (c.isMesh && !targetMat) targetMat = c.material; });
+
+        if (targetMat && targetMat.isMeshPhysicalMaterial) {
+            // SAFE HELPER
+            const val = (id, defaultValue) => {
+                const el = document.getElementById(id);
+                // If element is missing, return the default (usually 1 for opacity)
+                return el ? parseFloat(el.value) : defaultValue;
+            };
+
+            const colorEl = document.getElementById('matColor');
+
+            updateMaterialInstance(targetMat, {
+                ior: val('matIOR', 1.5),
+                transmission: val('matTransmission', 1),
+                opacity: val('matOpacity', 1), // FIXED: Defaults to 1 if missing
+                roughness: val('matRoughness', 0.05),
+                thickness: val('matThickness', 1),
+                color: colorEl ? colorEl.value : '#ffffff'
             });
         }
     };
-    ['matIOR', 'matTransmission', 'matRoughness', 'matThickness', 'matColor'].forEach(id => {
+    ['matIOR', 'matTransmission', 'matRoughness', 'matThickness','matOpacity','matColor'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.addEventListener('input', onMaterialInput);
     });
