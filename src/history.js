@@ -3,13 +3,8 @@ import * as THREE from 'three';
 let undoStack = [];
 let redoStack = [];
 
-/**
- * Captures the complete state (TRS + Material)
- */
 export function getModelState(model) {
     if (!model) return null;
-
-    // Find material instance
     let mat = null;
     model.traverse(c => { if (c.isMesh && !mat) mat = c.material; });
 
@@ -17,7 +12,6 @@ export function getModelState(model) {
         position: model.position.clone(),
         rotation: model.rotation.clone(),
         scale: model.scale.clone(),
-        // Capture material if it exists
         material: mat ? {
             ior: mat.ior,
             transmission: mat.transmission,
@@ -28,16 +22,11 @@ export function getModelState(model) {
     };
 }
 
-/**
- * Saves an action ONLY if something actually changed
- */
 export function saveAction(model, oldState, newState) {
-    // Basic change detection for TRS
     const posChanged = !oldState.position.equals(newState.position);
     const rotChanged = !oldState.rotation.equals(newState.rotation);
     const scaChanged = !oldState.scale.equals(newState.scale);
     
-    // Detection for Material
     let matChanged = false;
     if (oldState.material && newState.material) {
         matChanged = oldState.material.ior !== newState.material.ior || 
@@ -47,22 +36,27 @@ export function saveAction(model, oldState, newState) {
 
     if (posChanged || rotChanged || scaChanged || matChanged) {
         undoStack.push({ model, oldState, newState });
-        redoStack = []; // Clear redo on new action
+        redoStack = []; 
         if (undoStack.length > 100) undoStack.shift();
     }
 }
 
+/**
+ * THE FIX: applyState uses .update() for the gizmo
+ */
 function applyState(action, state, transformControls) {
     const { model } = action;
     if (!model) return;
 
-    // Apply TRS
+    // 1. Restore the model's coordinates
     model.position.copy(state.position);
     model.rotation.copy(state.rotation);
     model.scale.copy(state.scale);
+    
+    // 2. Force the model to recalculate its world position
     model.updateMatrixWorld(true);
 
-    // Apply Material if saved
+    // 3. Restore material properties
     if (state.material) {
         model.traverse(c => {
             if (c.isMesh && c.material) {
@@ -76,9 +70,13 @@ function applyState(action, state, transformControls) {
         });
     }
 
-    // Crucial: Update the Gizmo visually
+    // 4. THE FIX FOR THE CONSOLE ERROR: 
+    // If the gizmo is currently attached to this model, refresh its position
     if (transformControls && transformControls.object === model) {
-        transformControls.updateMatrixWorld();
+        // TransformControls uses .update() to snap the gizmo back to the model
+        if (typeof transformControls.update === 'function') {
+            transformControls.update();
+        }
     }
 }
 
